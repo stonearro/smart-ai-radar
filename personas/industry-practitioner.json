@@ -6,7 +6,7 @@
   "expertise": ["AI 产品", "商业智能", "技术管理", "落地案例"],
   "analysisFocus": ["商业价值", "市场前景", "应用案例", "落地效果"],
   "filter": {
-    "categories": ["application", "tech"],
+    "categories": ["application"],
     "tags": ["产品", "product", "launch", "business"],
     "keywords": ["发布", "上线", "商用", "落地", "launch", "release", "product", "platform"]
   },

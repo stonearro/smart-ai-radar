@@ -114,6 +114,28 @@ test('a persona narrows the result set', async () => {
   );
 });
 
+test('every built-in persona id actually filters', async () => {
+  const all = await get('/api/news?limit=50');
+  const ids = (await get('/api/personas')).json.data.map((persona) => persona.id);
+
+  for (const id of ids) {
+    const res = await get(`/api/news?limit=50&persona=${id}`);
+    assert.equal(res.status, 200, `${id} should be accepted`);
+    assert.equal(res.json.metadata.profile.persona, id, `${id} should be echoed back`);
+    assert.ok(
+      res.json.metadata.total < all.json.metadata.total,
+      `${id} must narrow the set, got ${res.json.metadata.total} of ${all.json.metadata.total}`
+    );
+  }
+});
+
+test('an unknown persona is rejected instead of matching everything', async () => {
+  const res = await get('/api/news?persona=not-a-persona');
+  assert.equal(res.status, 400);
+  assert.match(res.json.error, /Unknown persona/);
+  assert.match(res.json.error, /academic-researcher/);
+});
+
 test('a language with no local articles yields an empty list', async () => {
   const res = await get('/api/news?language=en');
   assert.equal(res.status, 200);

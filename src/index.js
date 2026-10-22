@@ -62,6 +62,27 @@ function readProfile(query = {}) {
   return profile;
 }
 
+/**
+ * Turn `profile.persona` (an id such as "academic-researcher") into the persona
+ * object the engine can actually filter on. Unknown ids are rejected instead of
+ * silently matching everything.
+ */
+function resolvePersona(profile = {}) {
+  if (!profile.persona) return profile;
+
+  if (typeof profile.persona === 'object') {
+    return profile;
+  }
+
+  const persona = personas.getPersona(String(profile.persona));
+  if (!persona) {
+    const available = personas.listPersonas().map((item) => item.id).join(', ');
+    throw badRequest(`Unknown persona "${profile.persona}". Available: ${available}`);
+  }
+
+  return { ...profile, persona };
+}
+
 function readFormats(query = {}) {
   const raw = query.formats || query.format;
   if (!raw) return ['json'];
@@ -134,7 +155,7 @@ app.get('/api/sources', (req, res) => {
 
 app.get('/api/news', async (req, res, next) => {
   try {
-    const profile = readProfile(req.query);
+    const profile = resolvePersona(readProfile(req.query));
     const formats = readFormats(req.query);
     const limit = clamp(Number(req.query.limit) || 20, 1, 100);
 
@@ -143,7 +164,7 @@ app.get('/api/news', async (req, res, next) => {
 
     const context = {
       title: req.query.title || 'Smart AI Radar',
-      persona: profile.persona || null
+      persona: profile.persona ? profile.persona.id : null
     };
 
     const rendered = {};
@@ -166,7 +187,10 @@ app.get('/api/news', async (req, res, next) => {
         total: filtered.length,
         available: articles.length,
         formats,
-        profile,
+        profile: {
+          ...profile,
+          persona: profile.persona ? profile.persona.id : null
+        },
         timestamp: new Date().toISOString()
       }
     });
@@ -229,7 +253,7 @@ app.delete('/api/personas/:id', async (req, res, next) => {
 
 app.post('/api/export', async (req, res, next) => {
   try {
-    const profile = req.body?.profile || {};
+    const profile = resolvePersona(req.body?.profile || {});
     const formats = req.body?.formats || ['html', 'markdown', 'json'];
     const limit = clamp(Number(req.body?.limit) || 20, 1, 100);
 
@@ -239,7 +263,10 @@ app.post('/api/export', async (req, res, next) => {
     }
 
     const articles = engine.filterNews(await engine.fetchNews(), profile).slice(0, limit);
-    const context = { title: req.body?.title || 'Smart AI Radar', persona: profile.persona || null };
+    const context = {
+      title: req.body?.title || 'Smart AI Radar',
+      persona: profile.persona ? profile.persona.id : null
+    };
 
     const written = [];
     for (const format of formats) {
