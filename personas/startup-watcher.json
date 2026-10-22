@@ -1,0 +1,21 @@
+{
+  "name": "创业观察者",
+  "description": "关注融资、团队与赛道变化，用最少的时间判断哪里在起风。",
+  "category": "startup",
+  "language": "zh-CN",
+  "expertise": ["早期投资", "赛道判断", "增长策略", "竞争格局"],
+  "analysisFocus": ["融资轮次", "估值逻辑", "团队背景", "竞争壁垒"],
+  "filter": {
+    "categories": ["startup", "funding", "business"],
+    "tags": ["融资", "funding", "venture", "startup"],
+    "keywords": ["融资", "创业", "估值", "赛道", "funding", "venture", "startup", "seed round"]
+  },
+  "credibilityWeight": 0.6,
+  "outputFormats": ["html", "json"],
+  "isActive": true,
+  "metadata": {
+    "author": "smart-ai-radar",
+    "version": "1.0.0",
+    "tags": ["创业", "融资", "赛道"]
+  }
+}

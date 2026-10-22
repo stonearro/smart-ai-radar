@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "note": "Test fixture: local sources only so the suite never depends on the network.",
+  "sources": [
+    {
+      "name": "AI 日报（本地样例）",
+      "type": "json",
+      "url": "data/news/rss/ai-news-daily.json",
+      "language": "zh-CN",
+      "category": "tech",
+      "priority": 1,
+      "enabled": true
+    },
+    {
+      "name": "AI 博客（本地样例）",
+      "type": "json",
+      "url": "data/news/static/ai-blog.json",
+      "language": "zh-CN",
+      "category": "ai",
+      "priority": 2,
+      "enabled": true
+    }
+  ]
+}

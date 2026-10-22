@@ -1,0 +1,21 @@
+{
+  "name": "工程实践者",
+  "description": "关注实现细节、工具链和工程经验，偏好能直接跑起来的教程与源码。",
+  "category": "technical",
+  "language": "zh-CN",
+  "expertise": ["工程实现", "推理优化", "工具链", "开源项目"],
+  "analysisFocus": ["实现细节", "性能开销", "可维护性", "踩坑记录"],
+  "filter": {
+    "categories": ["technical", "open-source", "engineering"],
+    "tags": ["教程", "tutorial", "源码", "code", "engineering"],
+    "keywords": ["教程", "实现", "源码", "部署", "tutorial", "implementation", "how-to", "open source"]
+  },
+  "credibilityWeight": 0.65,
+  "outputFormats": ["markdown", "javascript", "json"],
+  "isActive": true,
+  "metadata": {
+    "author": "smart-ai-radar",
+    "version": "1.0.0",
+    "tags": ["工程", "教程", "源码"]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "行业实践者",
+  "description": "关注产品发布、商业落地和行业动向，只看能立刻用上的东西。",
+  "category": "industry",
+  "language": "zh-CN",
+  "expertise": ["AI 产品", "商业智能", "技术管理", "落地案例"],
+  "analysisFocus": ["商业价值", "市场前景", "应用案例", "落地效果"],
+  "filter": {
+    "categories": ["application", "tech"],
+    "tags": ["产品", "product", "launch", "business"],
+    "keywords": ["发布", "上线", "商用", "落地", "launch", "release", "product", "platform"]
+  },
+  "credibilityWeight": 0.7,
+  "outputFormats": ["html", "markdown"],
+  "isActive": true,
+  "metadata": {
+    "author": "smart-ai-radar",
+    "version": "1.0.0",
+    "tags": ["应用", "商业", "产品"]
+  }
+}

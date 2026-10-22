@@ -1,0 +1,48 @@
+{
+  "name": "smart-ai-radar",
+  "version": "1.0.0",
+  "description": "按用户画像定制的 AI 资讯雷达：多源抓取、Persona 过滤、HTML/Markdown/JSON/JS 四种输出",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/api.test.js",
+    "build:site": "node scripts/build-site.js"
+  },
+  "keywords": [
+    "ai",
+    "news",
+    "radar",
+    "rss",
+    "persona",
+    "aggregator",
+    "html",
+    "markdown"
+  ],
+  "author": "stonearro",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stonearro/smart-ai-radar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stonearro/smart-ai-radar/issues"
+  },
+  "homepage": "https://github.com/stonearro/smart-ai-radar#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "src",
+    "personas",
+    "data",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "helmet": "^7.2.0"
+  }
+}

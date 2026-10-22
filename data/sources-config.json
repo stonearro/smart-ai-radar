@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "note": "url 可以是本地相对路径，也可以是 http(s) 的 RSS/Atom/JSON 地址。enabled=false 的来源会被跳过。",
+  "sources": [
+    {
+      "name": "AI 日报（本地样例）",
+      "type": "json",
+      "url": "data/news/rss/ai-news-daily.json",
+      "language": "zh-CN",
+      "category": "tech",
+      "priority": 1,
+      "enabled": true
+    },
+    {
+      "name": "AI 博客（本地样例）",
+      "type": "json",
+      "url": "data/news/static/ai-blog.json",
+      "language": "zh-CN",
+      "category": "ai",
+      "priority": 2,
+      "enabled": true
+    },
+    {
+      "name": "TechCrunch AI",
+      "type": "rss",
+      "url": "https://techcrunch.com/category/artificial-intelligence/feed/",
+      "language": "en",
+      "category": "tech",
+      "priority": 3,
+      "enabled": true
+    },
+    {
+      "name": "MIT Technology Review · AI",
+      "type": "rss",
+      "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed",
+      "language": "en",
+      "category": "research",
+      "priority": 4,
+      "enabled": false
+    },
+    {
+      "name": "Hacker News · AI",
+      "type": "rss",
+      "url": "https://hnrss.org/newest?q=AI",
+      "language": "en",
+      "category": "engineering",
+      "priority": 5,
+      "enabled": false
+    }
+  ]
+}

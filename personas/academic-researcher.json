@@ -1,0 +1,21 @@
+{
+  "name": "学术研究员",
+  "description": "关注论文、基准测试和研究方法，优先阅读一手研究结果。",
+  "category": "academic",
+  "language": "zh-CN",
+  "expertise": ["机器学习", "深度学习", "神经网络", "计算机视觉", "自然语言处理"],
+  "analysisFocus": ["研究方法", "实验结果", "可复现性", "论文评审"],
+  "filter": {
+    "categories": ["research"],
+    "tags": ["论文", "paper", "research", "study", "benchmark"],
+    "keywords": ["论文", "研究", "实验", "paper", "study", "benchmark", "arxiv"]
+  },
+  "credibilityWeight": 0.9,
+  "outputFormats": ["html", "markdown", "json"],
+  "isActive": true,
+  "metadata": {
+    "author": "smart-ai-radar",
+    "version": "1.0.0",
+    "tags": ["研究", "论文", "学术"]
+  }
+}
