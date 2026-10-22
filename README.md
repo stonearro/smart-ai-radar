@@ -81,13 +81,26 @@ curl -X POST http://localhost:3000/api/ask \
 | 教程 / 源码 / 工程 / 部署 | 人格 `technical-builder` |
 | 创业 / 融资 / 赛道 / funding | 人格 `startup-watcher` |
 | 产品 / 落地 / 行业 / 案例 | 人格 `industry-practitioner` |
+| 财经 / 金融 / 股市 / 汇率 / 美联储 | 分类 `finance` |
+| 比特币 / 区块链 / crypto | 分类 `crypto` |
+| 政策 / 监管 / 反垄断 | 分类 `policy` |
+| 体育 / 娱乐 / 游戏 / 军事 / 房产 / 健康 | 对应分类（通常没有接源，见下） |
 | 今天 / 昨天 / 三天 / 本周 / 本月 | `sinceDays` = 1 / 2 / 3 / 7 / 30 |
 | 中文 / 英文 | `language` = `zh-CN` / `en` |
 | 5 条 / top 10 / 前 20 | `limit` |
 | 重要 / 高质量 / 精选 | `minRelevance` = 0.6 |
 | 「vLLM」引号里的词 | `keywords` |
 
-没识别到任何偏好时不报错，按时间给最新 8 条，并在 `understood` 里说明「没识别到具体偏好」。
+**优先级**：点名人格 > 强主题（财经/加密/体育…）> 软性人格 > 弱主题分类。所以「比特币行情」只认加密，不会因为「行情」顺带返回财经；而「最近一周的 AI 论文」仍然走学术人格。
+
+**没结果就说没结果。** 问「体育新闻」不会退回去塞给你最新 8 条，而是明确回答：
+
+```
+当前没有体育（sports）分类的资讯源，所以给不出结果。
+已配置的分类：tech / ai / finance。
+```
+
+宁可空，不要错——这是「回答对不上问题」最常见的来源。没识别到任何偏好时才会退化成按时间给最新 8 条，并在 `understood` 里写明「没识别到具体偏好」。
 
 整套映射在 [`src/core/intent.js`](src/core/intent.js)，是显式规则表，不是模型调用——可读、可改、可测、零成本。
 
@@ -195,7 +208,10 @@ curl -X POST http://localhost:3000/api/export \
 - `url` 是相对路径就读本地文件，是 `http(s)` 就抓网络。
 - `type` 不写也行：会自动判断 JSON / RSS / Atom。
 - 远程请求 5s 超时，失败只打 warn。
+- `category` 决定这个源产出的文章分类，也是 `/api/ask` 里主题词的落点——想支持「财经」就加一个 `category: "finance"` 的源。
 - 想让测试完全不联网：`RADAR_SOURCES_FILE=test/fixtures/sources.offline.json`。
+
+默认配了 3 个本地样例源（科技 / 博客 / 财经）+ 3 个在线源（TechCrunch AI、BBC Business、CNBC Business）。
 
 ## 输出格式
 
@@ -229,7 +245,7 @@ npm run build:site -- --persona technical-builder --limit 10 --language zh-CN
 npm test
 ```
 
-25 个用例，覆盖全部路由、四种格式、参数校验、人格过滤、自然语言解析、导出落盘和 404。测试使用 `test/fixtures/sources.offline.json`（仅本地源），所以**不依赖网络**，也不会写脏工作区。
+31 个用例，覆盖全部路由、四种格式、参数校验、人格过滤、主题路由、空结果的诚实回答、导出落盘和 404。测试使用 `test/fixtures/sources.offline.json`（仅本地源），所以**不依赖网络**，也不会写脏工作区。
 
 > 样例数据用 `publishedAtOffsetDays`（距今多少天）而不是固定时间戳，否则过几周「最近一周」就永远查不到东西了。
 

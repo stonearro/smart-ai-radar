@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "note": "Test fixture: local sources only so the suite never depends on the network.",
   "sources": [
     {
@@ -18,6 +18,15 @@
       "language": "zh-CN",
       "category": "ai",
       "priority": 2,
+      "enabled": true
+    },
+    {
+      "name": "财经观察（本地样例）",
+      "type": "json",
+      "url": "data/news/static/finance-sample.json",
+      "language": "zh-CN",
+      "category": "finance",
+      "priority": 3,
       "enabled": true
     }
   ]

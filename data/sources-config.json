@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "note": "url 可以是本地相对路径，也可以是 http(s) 的 RSS/Atom/JSON 地址。enabled=false 的来源会被跳过。",
+  "version": 2,
+  "note": "url 可以是本地相对路径，也可以是 http(s) 的 RSS/Atom/JSON 地址。enabled=false 的来源会被跳过。category 决定这个源产出的文章分类，也是 /api/ask 里「财经」这类主题词的落点。",
   "sources": [
     {
       "name": "AI 日报（本地样例）",
@@ -21,12 +21,39 @@
       "enabled": true
     },
     {
+      "name": "财经观察（本地样例）",
+      "type": "json",
+      "url": "data/news/static/finance-sample.json",
+      "language": "zh-CN",
+      "category": "finance",
+      "priority": 3,
+      "enabled": true
+    },
+    {
       "name": "TechCrunch AI",
       "type": "rss",
       "url": "https://techcrunch.com/category/artificial-intelligence/feed/",
       "language": "en",
       "category": "tech",
-      "priority": 3,
+      "priority": 4,
+      "enabled": true
+    },
+    {
+      "name": "BBC Business",
+      "type": "rss",
+      "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+      "language": "en",
+      "category": "finance",
+      "priority": 5,
+      "enabled": true
+    },
+    {
+      "name": "CNBC Business",
+      "type": "rss",
+      "url": "https://www.cnbc.com/id/10001147/device/rss/rss.html",
+      "language": "en",
+      "category": "finance",
+      "priority": 6,
       "enabled": true
     },
     {
@@ -35,16 +62,7 @@
       "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed",
       "language": "en",
       "category": "research",
-      "priority": 4,
-      "enabled": false
-    },
-    {
-      "name": "Hacker News · AI",
-      "type": "rss",
-      "url": "https://hnrss.org/newest?q=AI",
-      "language": "en",
-      "category": "engineering",
-      "priority": 5,
+      "priority": 7,
       "enabled": false
     }
   ]

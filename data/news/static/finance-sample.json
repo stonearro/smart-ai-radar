@@ -1,0 +1,42 @@
+{
+  "feed": "财经观察",
+  "note": "样例数据。publishedAtOffsetDays 表示「距今多少天」。",
+  "articles": [
+    {
+      "id": "fin-001",
+      "title": "美联储按兵不动，点阵图暗示年内仅剩一次降息",
+      "summary": "决议公布后两年期美债收益率下行 8 个基点，美元指数走弱。",
+      "content": "美联储宣布维持联邦基金利率不变，符合市场预期。最新点阵图显示多数官员认为年内仅剩一次降息，较此前预期减少一次。声明删去了「通胀取得进一步进展」的表述，改为「通胀仍略高于目标」。鲍威尔在记者会上表示，需要看到更多数据才会行动。",
+      "url": "https://example.com/finance/fed-hold-oct",
+      "publishedAtOffsetDays": 0.1,
+      "language": "zh-CN",
+      "category": "finance",
+      "tags": ["美联储", "利率", "降息", "债券"],
+      "author": "财经观察"
+    },
+    {
+      "id": "fin-002",
+      "title": "全球股市三季度收官：科技板块领涨，欧洲市场资金净流出",
+      "summary": "MSCI 全球指数三季度上涨 4.2%，资金持续从欧洲流向美国与日本。",
+      "content": "三季度全球主要股指普遍收涨，科技板块贡献了标普 500 近六成的涨幅。资金流向方面，欧洲股票基金连续第七周净流出，而美国与日本市场获得净流入。分析师认为，盈利修正的方向差异是主要原因。",
+      "url": "https://example.com/finance/q3-global-markets",
+      "publishedAtOffsetDays": 0.6,
+      "language": "zh-CN",
+      "category": "finance",
+      "tags": ["股市", "资金流向", "科技股"],
+      "author": "财经观察"
+    },
+    {
+      "id": "fin-003",
+      "title": "人民币汇率中间价小幅走强，出口企业结汇意愿回升",
+      "summary": "中间价调升 62 个基点，离岸人民币一度升破 7.05。",
+      "content": "人民币对美元中间价报 7.0638，较上一交易日调升 62 个基点。交易员表示，月末结汇需求叠加美元走弱，推动人民币短线走强；离岸市场一度升破 7.05。市场关注下周公布的贸易数据。",
+      "url": "https://example.com/finance/cny-fixing",
+      "publishedAtOffsetDays": 1.7,
+      "language": "zh-CN",
+      "category": "finance",
+      "tags": ["汇率", "人民币", "外汇"],
+      "author": "财经观察"
+    }
+  ]
+}

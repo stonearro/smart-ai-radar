@@ -109,6 +109,57 @@ function badRequest(message) {
   return error;
 }
 
+/**
+ * 空结果必须说清楚「为什么空」，否则用户会以为系统给错了内容。
+ */
+function explainEmpty(profile) {
+  const covered = [...new Set(engine.sources.map((source) => source.category).filter(Boolean))];
+  const labels = profile.categoryLabels || [];
+  const requested = (profile.categories || []).map((category, index) => ({
+    category,
+    label: labels[index] || category
+  }));
+
+  const missing = requested.filter((entry) => !covered.includes(entry.category));
+
+  if (missing.length > 0) {
+    const described = missing.map((entry) => `${entry.label}（${entry.category}）`).join('、');
+    return `当前没有${described}分类的资讯源，所以给不出结果。已配置的分类：${covered.join(' / ')}。想支持的话，在 data/sources-config.json 里加一条 category 为该值、url 指向对应 RSS 的源即可。`;
+  }
+
+  return `已按 ${describeProfile(profile)} 过滤，但没有匹配的资讯。可以放宽时间范围、去掉部分条件，或者换个更宽的说法。`;
+}
+
+function describeProfile(profile) {
+  const parts = [];
+  const labels = profile.categoryLabels || [];
+
+  if (profile.persona) {
+    parts.push(`人格 ${profile.persona.id || profile.persona}`);
+  }
+  if (Array.isArray(profile.categories) && profile.categories.length > 0) {
+    parts.push(
+      `分类 ${profile.categories
+        .map((category, index) => `${labels[index] || category}（${category}）`)
+        .join(' / ')}`
+    );
+  }
+  if (profile.language) {
+    parts.push(`语言 ${profile.language}`);
+  }
+  if (profile.sinceDays) {
+    parts.push(`最近 ${profile.sinceDays} 天`);
+  }
+  if (typeof profile.minRelevance === 'number') {
+    parts.push(`相关性 ≥ ${profile.minRelevance}`);
+  }
+  if (Array.isArray(profile.keywords) && profile.keywords.length > 0) {
+    parts.push(`关键词 ${profile.keywords.join(' / ')}`);
+  }
+
+  return parts.length > 0 ? parts.join('，') : '无额外条件';
+}
+
 /* ------------------------------- routes ------------------------------- */
 
 app.get('/', (req, res) => {
@@ -224,6 +275,10 @@ app.post('/api/ask', async (req, res, next) => {
 
     const context = {
       title: query.length > 40 ? `${query.slice(0, 40)}…` : query,
+      subtitle:
+        profile.categoryLabels && profile.categoryLabels.length > 0
+          ? `${profile.categoryLabels.join(' / ')}资讯`
+          : '为你定制的 AI 资讯雷达',
       persona: profile.persona ? profile.persona.id : null
     };
     const content = generator.render(filtered, format, context);
@@ -238,10 +293,7 @@ app.post('/api/ask', async (req, res, next) => {
       },
       metadata: { total: filtered.length, available: articles.length },
       data: { [format]: format === 'json' ? JSON.parse(content) : content },
-      hint:
-        filtered.length === 0
-          ? '这个组合没找到结果，试试去掉时间限制，或者换成更宽的说法（比如只提「论文」）。'
-          : null
+      hint: filtered.length === 0 ? explainEmpty(profile) : null
     });
   } catch (error) {
     next(error);

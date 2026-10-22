@@ -47,14 +47,14 @@ test('GET /api/health reports loaded sources and personas', async () => {
   const res = await get('/api/health');
   assert.equal(res.status, 200);
   assert.equal(res.json.status, 'healthy');
-  assert.equal(res.json.sources, 2, 'offline fixture exposes exactly two sources');
+  assert.equal(res.json.sources, 3, 'offline fixture exposes exactly three sources');
   assert.equal(res.json.personas, 4);
 });
 
 test('GET /api/sources lists the configured feeds', async () => {
   const res = await get('/api/sources');
   assert.equal(res.status, 200);
-  assert.equal(res.json.data.length, 2);
+  assert.equal(res.json.data.length, 3);
   assert.ok(res.json.data.every((source) => source.name && source.url));
 });
 
@@ -291,4 +291,58 @@ test('GET /chat serves the dialog page', async () => {
   assert.match(res.type, /text\/html/);
   assert.match(res.text, /Smart AI Radar/);
   assert.match(res.text, /\/api\/ask/);
+});
+
+/* ------------------------- 主题识别与空结果 ------------------------- */
+
+test('parseIntent routes 财经 to the finance category', () => {
+  const { profile, explanation } = parseIntent('全球财经资讯');
+  assert.deepEqual(profile.categories, ['finance']);
+  assert.equal(profile.persona, undefined, '财经是主题不是人格');
+  assert.match(explanation[0], /财经/);
+});
+
+test('parseIntent lets a specific domain beat a broad word', () => {
+  // 「行情」本来会命中财经，但「比特币」更具体，应该只留加密
+  const { profile } = parseIntent('比特币行情');
+  assert.deepEqual(profile.categories, ['crypto']);
+});
+
+test('parseIntent keeps the persona for AI-domain queries', () => {
+  const { profile } = parseIntent('最近一周的 AI 论文，中文的，5 条');
+  assert.equal(profile.persona, 'academic-researcher');
+  assert.equal(profile.categories, undefined);
+});
+
+test('POST /api/ask returns finance news for 全球财经资讯', async () => {
+  const res = await post('/api/ask', { q: '全球财经资讯', format: 'json' });
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.json.profile.categories, ['finance']);
+  assert.ok(res.json.metadata.total > 0, '财经源应该能给出结果');
+  assert.equal(res.json.hint, null);
+
+  for (const article of res.json.data.json.articles) {
+    assert.equal(article.category, 'finance', `不该把 ${article.category} 当成财经：${article.title}`);
+  }
+});
+
+test('POST /api/ask explains an uncovered topic instead of returning noise', async () => {
+  const res = await post('/api/ask', { q: '体育新闻', format: 'json' });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.json.metadata.total, 0, '没有体育源就不该返回别的内容');
+  assert.match(res.json.hint, /没有体育/);
+  assert.match(res.json.hint, /已配置的分类/);
+});
+
+test('POST /api/ask narrows finance by language', async () => {
+  const res = await post('/api/ask', { q: '中文财经资讯，5 条', format: 'json' });
+
+  assert.equal(res.status, 200);
+  assert.ok(res.json.metadata.total > 0);
+  for (const article of res.json.data.json.articles) {
+    assert.equal(article.category, 'finance');
+    assert.equal(article.language, 'zh-CN');
+  }
 });

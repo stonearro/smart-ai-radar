@@ -27,12 +27,46 @@ const PERSONA_RULES = [
   }
 ];
 
+/**
+ * 主题词 -> 分类。priority 用来处理「一句话命中多个领域」：
+ * 只保留优先级最高的一组，避免「比特币行情」同时命中 财经 和 加密 后
+ * 用财经新闻冒充加密行情。
+ */
 const CATEGORY_RULES = [
-  { category: 'research', re: /论文|研究|学术|科研|paper|research|arxiv|benchmark/i },
-  { category: 'startup', re: /创业|融资|投资|funding|startup|venture/i },
-  { category: 'technical', re: /教程|源码|代码|工程|tutorial|code|engineering/i },
-  { category: 'application', re: /落地|案例|应用|商用|case|deploy/i },
-  { category: 'tech', re: /模型|产品|发布|大模型|model|product|release/i }
+  {
+    category: 'crypto',
+    label: '加密',
+    priority: 1,
+    re: /加密|比特币|以太坊|数字货币|区块链|crypto|bitcoin|ethereum|blockchain/i
+  },
+
+  // 明确识别、但通常没有接源的领域：识别出来是为了回答「没有这方面的源」，
+  // 而不是静默退回「最新几条」把不相关的内容当成结果。
+  { category: 'sports', label: '体育', priority: 1, re: /体育|足球|篮球|奥运|赛事|sports?|football|nba|olympic/i },
+  { category: 'entertainment', label: '娱乐', priority: 1, re: /娱乐|明星|影视|综艺|电影|entertainment|celebrity|movie/i },
+  { category: 'gaming', label: '游戏', priority: 1, re: /游戏|手游|主机|电竞|gaming|esports/i },
+  { category: 'military', label: '军事', priority: 1, re: /军事|国防|武器|military|defense/i },
+  { category: 'realestate', label: '房产', priority: 1, re: /房产|楼市|房地产|real\s*estate|housing/i },
+  { category: 'health', label: '健康', priority: 1, re: /健康|养生|疾病|医疗|health|wellness|medical/i },
+
+  {
+    category: 'finance',
+    label: '财经',
+    priority: 2,
+    re: /财经|金融|股市|股票|债券|基金|银行|利率|汇率|经济|美联储|通胀|行情|大盘|指数|美股|港股|A股|finance|financial|stock|market|economy|bond|fund|bank|fed|inflation/i
+  },
+  {
+    category: 'policy',
+    label: '政策',
+    priority: 2,
+    re: /政策|监管|法案|合规|反垄断|policy|regulation|compliance|antitrust/i
+  },
+
+  { category: 'research', label: '研究', priority: 3, re: /论文|研究|学术|科研|paper|research|arxiv|benchmark/i },
+  { category: 'startup', label: '创业', priority: 3, re: /创业|融资|投资|funding|startup|venture/i },
+  { category: 'technical', label: '工程', priority: 3, re: /教程|源码|代码|工程|tutorial|code|engineering/i },
+  { category: 'application', label: '落地', priority: 3, re: /落地|案例|应用|商用|case|deploy/i },
+  { category: 'tech', label: '科技', priority: 3, re: /模型|产品|发布|大模型|model|product|release/i }
 ];
 
 const LANGUAGE_RULES = [
@@ -64,21 +98,31 @@ function parseIntent(input) {
 
   const profile = { limit: DEFAULT_LIMIT };
 
-  /* ------------------------------ persona ------------------------------ */
-  const persona = pickPersona(text);
-  if (persona) {
-    profile.persona = persona.id;
-    explanation.push(`视角 → ${persona.name || persona.id}`);
+  /*
+   * 优先级：点名人格 > 强主题（财经/加密/体育…）> 软性人格 > 弱主题分类。
+   * 「全球财经资讯」走强主题，不会被「市场」误判成行业人格；
+   * 「最近一周的 AI 论文」仍然走学术人格，因为它本来就有专门的人格。
+   */
+  const explicit = findExplicitPersona(text);
+  const strongTopic = explicit ? null : matchTopic(text, 2);
+  const softPersona = explicit || strongTopic ? null : pickPersona(text);
+  const weakTopic = explicit || strongTopic || softPersona ? null : matchTopic(text, 3);
+  const topic = strongTopic || weakTopic;
+
+  if (explicit) {
+    profile.persona = explicit;
+    explanation.push(`视角 → ${explicit}`);
+  } else if (topic) {
+    profile.categories = topic.categories;
+    profile.categoryLabels = topic.labels;
+    explanation.push(`分类 → ${topic.described}`);
+  } else if (softPersona) {
+    profile.persona = softPersona.id;
+    explanation.push(`视角 → ${softPersona.id}`);
   }
 
-  /* ----------------------------- categories ---------------------------- */
-  if (!persona) {
-    const categories = CATEGORY_RULES.filter((rule) => rule.re.test(text)).map((rule) => rule.category);
-    if (categories.length > 0) {
-      profile.categories = [...new Set(categories)];
-      explanation.push(`分类 → ${profile.categories.join(' / ')}`);
-    }
-  }
+  /* ------------------------------ persona ------------------------------ */
+  // 已在上面决定，这里不再重复判断
 
   /* ------------------------------ language ----------------------------- */
   for (const rule of LANGUAGE_RULES) {
@@ -132,18 +176,35 @@ function parseIntent(input) {
   return { profile, explanation };
 }
 
-function pickPersona(text) {
+/** 用户直接写人格 id 时，不用猜。 */
+function findExplicitPersona(text) {
   const lowered = text.toLowerCase();
-
-  // 1) 用户直接点名
   for (const rule of PERSONA_RULES) {
-    if (lowered.includes(rule.id)) {
-      return { id: rule.id };
-    }
+    if (lowered.includes(rule.id)) return rule.id;
   }
+  return null;
+}
 
-  // 2) 按命中强度打分，避免一句话里多个词平票时取第一个
+/** 主题词 -> 分类，用来命中除 AI 之外的内容（财经等）。 */
+function matchTopic(text, maxPriority = 3) {
+  const hits = CATEGORY_RULES.filter((rule) => rule.re.test(text) && rule.priority <= maxPriority);
+  if (hits.length === 0) return null;
+
+  // 只留优先级最高的一组，避免宽泛词把专指词吃掉
+  const best = Math.min(...hits.map((rule) => rule.priority));
+  const matched = hits.filter((rule) => rule.priority === best);
+
+  return {
+    categories: [...new Set(matched.map((rule) => rule.category))],
+    labels: [...new Set(matched.map((rule) => rule.label))],
+    described: matched.map((rule) => `${rule.label}（${rule.category}）`).join(' / ')
+  };
+}
+
+/** 按命中强度挑人格，避免一句话里多个词平票时永远取第一个。 */
+function pickPersona(text) {
   let best = null;
+
   for (const rule of PERSONA_RULES) {
     const matches = text.match(new RegExp(rule.re.source, `${rule.re.flags}g`));
     const score = matches ? matches.length : 0;
@@ -155,4 +216,4 @@ function pickPersona(text) {
   return best;
 }
 
-module.exports = { parseIntent, DEFAULT_LIMIT };
+module.exports = { parseIntent, DEFAULT_LIMIT, CATEGORY_RULES };

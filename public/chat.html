@@ -30,7 +30,10 @@
   .understood { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 0; }
   .tag { font-size:.78rem; padding:3px 10px; border-radius:999px;
          color:var(--accent); background:color-mix(in srgb, var(--accent) 13%, transparent); }
-  .hint { margin:12px 0 0; font-size:.86rem; color:#b45309; }
+  .tag.zero { color:#b45309; background:rgba(180,83,9,.14); }
+  .hint { margin:12px 0 0; padding:10px 12px; font-size:.88rem; line-height:1.55;
+          color:#92400e; background:rgba(180,83,9,.09);
+          border:1px solid rgba(180,83,9,.25); border-radius:8px; }
   iframe { width:100%; border:1px solid var(--line); border-radius:12px; margin-top:16px; background:#fff; }
   .empty { color:var(--muted); font-size:.88rem; margin-top:16px; }
   .err { color:#b91c1c; }
@@ -103,7 +106,10 @@ form.addEventListener('submit', async (event) => {
       throw new Error(body.error || `HTTP ${response.status}`);
     }
 
-    understood.innerHTML = body.understood.map((line) => `<span class="tag">${escapeHTML(line)}</span>`).join('');
+    const total = body.metadata.total;
+    const chips = body.understood.map((line) => `<span class="tag">${escapeHTML(line)}</span>`);
+    chips.push(`<span class="tag${total === 0 ? ' zero' : ''}">结果 ${total} 条</span>`);
+    understood.innerHTML = chips.join('');
 
     if (body.hint) {
       hintBox.innerHTML = `<p class="hint">${escapeHTML(body.hint)}</p>`;
