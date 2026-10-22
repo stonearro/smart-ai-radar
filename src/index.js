@@ -9,6 +9,7 @@ require('./utils/env').load();
 
 const { NewsEngine } = require('./core/engine');
 const { PersonaManager } = require('./core/persona');
+const { parseIntent } = require('./core/intent');
 const { OutputGenerator, SUPPORTED_FORMATS } = require('./output/generator');
 const logger = require('./utils/logger');
 
@@ -197,6 +198,58 @@ app.get('/api/news', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+/**
+ * 自然语言入口：用一句话描述想看什么，返回解析出的参数 + 渲染结果。
+ */
+app.post('/api/ask', async (req, res, next) => {
+  try {
+    const query = String(req.body?.q ?? req.query.q ?? '').trim();
+    if (!query) {
+      throw badRequest('需要 q：用一句话描述你想看什么，例如「最近一周的 AI 论文，中文的，5 条」');
+    }
+
+    const format = String(req.body?.format || req.query.format || 'html').toLowerCase();
+    if (!SUPPORTED_FORMATS.includes(format)) {
+      throw badRequest(`Unsupported format "${format}". Supported: ${SUPPORTED_FORMATS.join(', ')}`);
+    }
+
+    const intent = parseIntent(query);
+    const profile = resolvePersona({ ...intent.profile });
+    const limit = profile.limit || 8;
+
+    const articles = await engine.fetchNews();
+    const filtered = engine.filterNews(articles, profile).slice(0, limit);
+
+    const context = {
+      title: query.length > 40 ? `${query.slice(0, 40)}…` : query,
+      persona: profile.persona ? profile.persona.id : null
+    };
+    const content = generator.render(filtered, format, context);
+
+    res.json({
+      success: true,
+      query,
+      understood: intent.explanation,
+      profile: {
+        ...profile,
+        persona: profile.persona ? profile.persona.id : null
+      },
+      metadata: { total: filtered.length, available: articles.length },
+      data: { [format]: format === 'json' ? JSON.parse(content) : content },
+      hint:
+        filtered.length === 0
+          ? '这个组合没找到结果，试试去掉时间限制，或者换成更宽的说法（比如只提「论文」）。'
+          : null
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/chat', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'chat.html'));
 });
 
 app.get('/api/personas', (req, res) => {

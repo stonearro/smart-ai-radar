@@ -22,6 +22,7 @@ Smart AI Radar 把「视角」抽出来变成数据：一个人格就是一个 J
 
 - **多源聚合**：本地 JSON、远程 RSS 2.0 / Atom、远程 JSON，混着配就行。
 - **Persona 过滤**：内置 4 个人格（学术 / 行业 / 工程 / 创业），也可以自己加一个 JSON 文件。
+- **说人话就行**：一个对话页，把「最近一周的 AI 论文，中文的，5 条」翻译成参数，并回显它理解到了什么。
 - **四种输出**：同一份数据同时渲染成 HTML 页面、Markdown 文档、JSON 和可嵌入的 JS 组件。
 - **相关性打分**：关键词命中 + 新鲜度，输出 0–1 的分数并按分数排序。
 - **零构建**：只有 3 个运行时依赖（express / cors / helmet），测试用 Node 内置 test runner。
@@ -36,7 +37,11 @@ npm install
 npm start
 ```
 
-打开 <http://localhost:3000>，或在浏览器里直接看渲染结果：
+然后打开对话页：<http://localhost:3000/chat>
+
+![对话窗口](docs/chat-result.png)
+
+或者直接用 URL：
 
 ```
 http://localhost:3000/api/news?formats=html&raw=1&persona=academic-researcher
@@ -49,14 +54,55 @@ cp .env.example .env
 # PORT=3000 / LOG_LEVEL=info
 ```
 
+## 用一句话要资讯
+
+`POST /api/ask` 吃一句话，吐出「它理解到的参数」+「结果」：
+
+```bash
+curl -X POST http://localhost:3000/api/ask \
+  -H "content-type: application/json" \
+  -d '{"q":"最近一周的 AI 论文，中文的，5 条","format":"html"}'
+```
+
+```json
+{
+  "query": "最近一周的 AI 论文，中文的，5 条",
+  "understood": ["视角 → academic-researcher", "语言 → zh-CN", "时间 → 最近 7 天", "条数 → 5"],
+  "profile": { "persona": "academic-researcher", "language": "zh-CN", "sinceDays": 7, "limit": 5 },
+  "metadata": { "total": 2, "available": 27 }
+}
+```
+
+能听懂的说法：
+
+| 你想说 | 它会解析成 |
+| --- | --- |
+| 论文 / 研究 / 学术 / paper | 人格 `academic-researcher` |
+| 教程 / 源码 / 工程 / 部署 | 人格 `technical-builder` |
+| 创业 / 融资 / 赛道 / funding | 人格 `startup-watcher` |
+| 产品 / 落地 / 行业 / 案例 | 人格 `industry-practitioner` |
+| 今天 / 昨天 / 三天 / 本周 / 本月 | `sinceDays` = 1 / 2 / 3 / 7 / 30 |
+| 中文 / 英文 | `language` = `zh-CN` / `en` |
+| 5 条 / top 10 / 前 20 | `limit` |
+| 重要 / 高质量 / 精选 | `minRelevance` = 0.6 |
+| 「vLLM」引号里的词 | `keywords` |
+
+没识别到任何偏好时不报错，按时间给最新 8 条，并在 `understood` 里说明「没识别到具体偏好」。
+
+整套映射在 [`src/core/intent.js`](src/core/intent.js)，是显式规则表，不是模型调用——可读、可改、可测、零成本。
+
+对话页支持 `?q=` 预填：<http://localhost:3000/chat?q=有没有「vLLM」推理优化的教程？>
+
 ## API
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/` | 服务信息与可用格式 |
+| GET | `/chat` | 对话页面 |
 | GET | `/api/health` | 健康检查（源数量、人格数量、uptime） |
 | GET | `/api/sources` | 当前生效的资讯源 |
 | GET | `/api/news` | 抓取 + 过滤 + 渲染 |
+| POST | `/api/ask` | 一句话 → 参数 → 结果 |
 | GET | `/api/personas` | 人格列表，支持 `?category=` |
 | GET | `/api/personas/:id` | 单个人格 |
 | GET | `/api/personas/recommend` | 按用户画像推荐人格 |
@@ -73,6 +119,7 @@ cp .env.example .env
 | `format` | `html` | `formats` 的单数别名 |
 | `persona` | `academic-researcher` | 人格 id |
 | `language` | `zh-CN` | 语言过滤 |
+| `sinceDays` | `7` | 只要最近 N 天的 |
 | `categories` | `research,startup` | 分类过滤 |
 | `tags` | `论文,paper` | 标签过滤 |
 | `keywords` | `推理,benchmark` | 正文关键词过滤 |
@@ -182,7 +229,9 @@ npm run build:site -- --persona technical-builder --limit 10 --language zh-CN
 npm test
 ```
 
-16 个用例，覆盖全部路由、四种格式、参数校验、人格过滤、导出落盘和 404。测试使用 `test/fixtures/sources.offline.json`（仅本地源），所以**不依赖网络**，也不会写脏工作区。
+25 个用例，覆盖全部路由、四种格式、参数校验、人格过滤、自然语言解析、导出落盘和 404。测试使用 `test/fixtures/sources.offline.json`（仅本地源），所以**不依赖网络**，也不会写脏工作区。
+
+> 样例数据用 `publishedAtOffsetDays`（距今多少天）而不是固定时间戳，否则过几周「最近一周」就永远查不到东西了。
 
 ## 项目结构
 
@@ -192,12 +241,14 @@ smart-ai-radar/
 │   ├── index.js              # Express 应用 + 路由
 │   ├── core/
 │   │   ├── engine.js         # 抓取 / 去重 / 打分 / 过滤
-│   │   └── persona.js        # 人格加载与 CRUD
+│   │   ├── persona.js        # 人格加载与 CRUD
+│   │   └── intent.js         # 一句话 → 参数（规则表）
 │   ├── output/
 │   │   └── generator.js      # html / markdown / json / javascript
 │   └── utils/
 │       ├── logger.js         # 无依赖日志
 │       └── env.js            # 无依赖 .env 读取
+├── public/chat.html          # 对话页面（原生 JS，无构建）
 ├── personas/                 # 人格即数据
 ├── data/
 │   ├── sources-config.json   # 源配置
@@ -209,7 +260,7 @@ smart-ai-radar/
 ## 设计取舍
 
 - **没有数据库**：资讯是短命的，缓存 5 分钟足够了；要持久化就存 `output/` 的产物。
-- **没有 LLM 调用**：过滤靠显式规则，可预测、可测试、零成本。想加摘要，接在你自己的 `/api/news` 之后即可。
+- **没有 LLM 调用**：过滤和一句话解析都靠显式规则，可预测、可测试、零成本。想要语义理解，把 `src/core/intent.js` 换成一次模型调用即可，接口形状不用变。
 - **人格是文件不是代码**：可以进 git、可以 review、可以分享，改人格不需要重启服务之外的任何东西。
 - **RSS 解析器只有 30 行**：够用就好，遇到奇怪的 feed 就换一个源。
 

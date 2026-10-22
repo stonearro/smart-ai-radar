@@ -9,6 +9,7 @@ process.env.RADAR_SOURCES_FILE = path.join(__dirname, 'fixtures', 'sources.offli
 process.env.LOG_LEVEL = 'error';
 
 const { start } = require('../src/index');
+const { parseIntent } = require('../src/core/intent');
 
 let server;
 let base;
@@ -207,4 +208,87 @@ test('unknown routes return a JSON 404', async () => {
   assert.equal(res.status, 404);
   assert.equal(res.json.success, false);
   assert.match(res.json.error, /not found/);
+});
+
+/* ------------------------- 自然语言 -> 参数 ------------------------- */
+
+const post = async (route, payload) => {
+  const response = await fetch(`${base}${route}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const text = await response.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    json = undefined;
+  }
+  return { status: response.status, text, json };
+};
+
+test('parseIntent maps 视角 / 语言 / 时间 / 条数', () => {
+  const { profile, explanation } = parseIntent('最近一周的 AI 论文，中文的，5 条');
+
+  assert.equal(profile.persona, 'academic-researcher');
+  assert.equal(profile.language, 'zh-CN');
+  assert.equal(profile.sinceDays, 7);
+  assert.equal(profile.limit, 5);
+  assert.equal(explanation.length, 4);
+});
+
+test('parseIntent picks up quoted keywords and quality intent', () => {
+  const keyword = parseIntent('有没有「vLLM」推理优化的教程？');
+  assert.equal(keyword.profile.persona, 'technical-builder');
+  assert.deepEqual(keyword.profile.keywords, ['vLLM']);
+
+  const quality = parseIntent('创业公司融资，重要的，3 条');
+  assert.equal(quality.profile.persona, 'startup-watcher');
+  assert.equal(quality.profile.minRelevance, 0.6);
+  assert.equal(quality.profile.limit, 3);
+});
+
+test('parseIntent falls back gracefully on vague input', () => {
+  const { profile, explanation } = parseIntent('随便看看');
+  assert.equal(profile.persona, undefined);
+  assert.equal(profile.limit, 8);
+  assert.match(explanation[0], /没识别到/);
+});
+
+test('POST /api/ask returns parameters plus a rendered result', async () => {
+  const res = await post('/api/ask', { q: '最近一周的 AI 论文，中文的，5 条' });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.json.profile.persona, 'academic-researcher');
+  assert.equal(res.json.profile.language, 'zh-CN');
+  assert.ok(res.json.understood.length === 4);
+  assert.ok(res.json.metadata.total > 0, '样例数据的时间是相对的，时间筛选应当有结果');
+  assert.ok(res.json.metadata.total <= 5);
+  assert.match(res.json.data.html, /^<!DOCTYPE html>/);
+});
+
+test('POST /api/ask honours the requested format', async () => {
+  const res = await post('/api/ask', { q: '教程', format: 'markdown' });
+  assert.equal(res.status, 200);
+  assert.match(res.json.data.markdown, /^# /);
+  assert.equal(res.json.data.html, undefined);
+});
+
+test('POST /api/ask validates input', async () => {
+  const missing = await post('/api/ask', {});
+  assert.equal(missing.status, 400);
+  assert.match(missing.json.error, /需要 q/);
+
+  const badFormat = await post('/api/ask', { q: '论文', format: 'pdf' });
+  assert.equal(badFormat.status, 400);
+  assert.match(badFormat.json.error, /Unsupported format/);
+});
+
+test('GET /chat serves the dialog page', async () => {
+  const res = await get('/chat');
+  assert.equal(res.status, 200);
+  assert.match(res.type, /text\/html/);
+  assert.match(res.text, /Smart AI Radar/);
+  assert.match(res.text, /\/api\/ask/);
 });

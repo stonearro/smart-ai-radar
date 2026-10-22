@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart AI Radar · 对话</title>
+<style>
+  :root { color-scheme: light dark; --fg:#1a1a1a; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --accent:#2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg:#e8eaed; --muted:#9aa0a6; --bg:#111318; --card:#1a1d23; --line:#2a2e37; --accent:#7aa2ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px 18px 48px; background:var(--bg); color:var(--fg);
+         font:16px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { margin:0 0 4px; font-size:1.5rem; letter-spacing:-0.01em; }
+  .sub { margin:0 0 20px; color:var(--muted); font-size:.9rem; }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  textarea { width:100%; min-height:76px; resize:vertical; padding:10px 12px; font:inherit;
+             color:inherit; background:transparent; border:1px solid var(--line); border-radius:8px; }
+  textarea:focus, button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  .row { display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+  button { font:inherit; padding:8px 18px; border-radius:8px; border:1px solid transparent;
+           background:var(--accent); color:#fff; cursor:pointer; }
+  button:disabled { opacity:.55; cursor:progress; }
+  .examples { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .chip { font-size:.8rem; padding:4px 11px; border-radius:999px; cursor:pointer;
+          border:1px solid var(--line); color:var(--muted); background:transparent; }
+  .chip:hover { color:var(--accent); border-color:var(--accent); }
+  .understood { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 0; }
+  .tag { font-size:.78rem; padding:3px 10px; border-radius:999px;
+         color:var(--accent); background:color-mix(in srgb, var(--accent) 13%, transparent); }
+  .hint { margin:12px 0 0; font-size:.86rem; color:#b45309; }
+  iframe { width:100%; border:1px solid var(--line); border-radius:12px; margin-top:16px; background:#fff; }
+  .empty { color:var(--muted); font-size:.88rem; margin-top:16px; }
+  .err { color:#b91c1c; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Smart AI Radar</h1>
+  <p class="sub">用一句话说清你要什么，系统会把它翻译成参数再去找。</p>
+
+  <form class="box" id="form">
+    <textarea id="q" placeholder="例如：最近一周的 AI 论文，中文的，5 条"></textarea>
+    <div class="row">
+      <button type="submit" id="send">发送</button>
+      <span class="sub" style="margin:0">Enter 发送 · Shift+Enter 换行</span>
+    </div>
+    <div class="examples" id="examples">
+      <button type="button" class="chip">最近一周的 AI 论文，中文的，5 条</button>
+      <button type="button" class="chip">我想看创业公司融资的消息，重要的，3 条</button>
+      <button type="button" class="chip">有没有 vLLM 推理优化的教程？</button>
+      <button type="button" class="chip">行业里落地的案例，英文的，10 条</button>
+    </div>
+  </form>
+
+  <div class="understood" id="understood"></div>
+  <div id="hint"></div>
+  <div id="result"></div>
+</div>
+
+<script>
+const form = document.getElementById('form');
+const input = document.getElementById('q');
+const send = document.getElementById('send');
+const understood = document.getElementById('understood');
+const hintBox = document.getElementById('hint');
+const result = document.getElementById('result');
+
+document.getElementById('examples').addEventListener('click', (event) => {
+  const chip = event.target.closest('.chip');
+  if (!chip) return;
+  input.value = chip.textContent.trim();
+  input.focus();
+});
+
+input.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    form.requestSubmit();
+  }
+});
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const query = input.value.trim();
+  if (!query) return;
+
+  send.disabled = true;
+  hintBox.innerHTML = '';
+  result.innerHTML = '<p class="empty">检索中…</p>';
+
+  try {
+    const response = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ q: query, format: 'html' })
+    });
+    const body = await response.json();
+
+    if (!response.ok) {
+      throw new Error(body.error || `HTTP ${response.status}`);
+    }
+
+    understood.innerHTML = body.understood.map((line) => `<span class="tag">${escapeHTML(line)}</span>`).join('');
+
+    if (body.hint) {
+      hintBox.innerHTML = `<p class="hint">${escapeHTML(body.hint)}</p>`;
+    }
+
+    const frame = document.createElement('iframe');
+    frame.title = '检索结果';
+    frame.srcdoc = body.data.html;
+    frame.onload = () => {
+      try {
+        frame.style.height = `${frame.contentDocument.documentElement.scrollHeight + 24}px`;
+      } catch {
+        frame.style.height = '900px';
+      }
+    };
+
+    result.innerHTML = '';
+    result.appendChild(frame);
+  } catch (error) {
+    result.innerHTML = `<p class="empty err">出错了：${escapeHTML(error.message)}</p>`;
+  } finally {
+    send.disabled = false;
+  }
+});
+
+function escapeHTML(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+// 支持 /chat?q=... 直接带参打开，方便分享和收藏
+const initial = new URLSearchParams(location.search).get('q');
+if (initial) {
+  input.value = initial;
+  form.requestSubmit();
+}
+</script>
+</body>
+</html>

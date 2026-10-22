@@ -136,7 +136,7 @@ class NewsEngine {
       summary: cleanText(item.summary || item.description || ''),
       content: cleanText(item.content || item['content:encoded'] || ''),
       url: item.url || item.link || '',
-      publishedAt: item.publishedAt || item.pubDate || item.published || item.date || null,
+      publishedAt: resolvePublishedAt(item),
       language: item.language || source.language || 'zh-CN',
       category: item.category || source.category || 'general',
       tags: Array.isArray(item.tags) ? item.tags : item.category ? [item.category] : [],
@@ -200,6 +200,14 @@ class NewsEngine {
 
     if (typeof userProfile.minRelevance === 'number') {
       result = result.filter((article) => article.relevance >= userProfile.minRelevance);
+    }
+
+    if (typeof userProfile.sinceDays === 'number' && userProfile.sinceDays > 0) {
+      const cutoff = Date.now() - userProfile.sinceDays * 24 * 60 * 60 * 1000;
+      result = result.filter((article) => {
+        const time = new Date(article.publishedAt || 0).getTime();
+        return Number.isFinite(time) && time >= cutoff;
+      });
     }
 
     if (userProfile.persona) {
@@ -306,6 +314,23 @@ class NewsEngine {
 function toTimestamp(value) {
   const time = new Date(value || 0).getTime();
   return Number.isFinite(time) ? time : 0;
+}
+
+/**
+ * Sample data ships with a fixed snapshot date, which would fall outside any
+ * "最近一周" style filter a few weeks later. `publishedAtOffsetDays` lets a
+ * fixture stay relative to load time; real feeds always carry a date.
+ */
+function resolvePublishedAt(item) {
+  if (item.publishedAt || item.pubDate || item.published || item.date) {
+    return item.publishedAt || item.pubDate || item.published || item.date;
+  }
+
+  if (typeof item.publishedAtOffsetDays === 'number') {
+    return new Date(Date.now() - item.publishedAtOffsetDays * 864e5).toISOString();
+  }
+
+  return null;
 }
 
 function cleanText(value) {

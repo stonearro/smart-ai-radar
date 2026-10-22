@@ -1,6 +1,6 @@
 {
   "feed": "AI 日报",
-  "updatedAt": "2026-10-22T12:00:00Z",
+  "note": "样例数据。publishedAtOffsetDays 表示「距今多少天」，保证时间筛选始终有结果。",
   "articles": [
     {
       "id": "daily-001",
@@ -8,7 +8,7 @@
       "summary": "新模型在数学推理、长上下文与代码生成三项基准上均超过上一代，API 价格保持不变。",
       "content": "OpenAI 今日发布 GPT-5，官方数据显示其在 AIME 数学题、SWE-bench 代码修复和长文档问答上的通过率均有明显提升。模型上下文窗口扩大，API 定价与 GPT-4 持平。官方同时开放了结构化输出与批量推理接口。",
       "url": "https://openai.com/index/gpt-5/",
-      "publishedAt": "2026-10-22T09:00:00Z",
+      "publishedAtOffsetDays": 0.05,
       "language": "zh-CN",
       "category": "tech",
       "tags": ["OpenAI", "GPT-5", "大模型", "product"],
@@ -20,7 +20,7 @@
       "summary": "论文给出完整消融实验与开源推理代码，第三方团队已复现主要结果。",
       "content": "DeepMind 在《Nature》发表 AlphaFold 3 论文，方法部分详细描述了新的扩散模块与等变注意力机制。论文附带的消融实验显示，蛋白-配体复合物预测精度相对上一代提升约 30%，推理代码已在 GitHub 开源，两个独立团队完成复现。",
       "url": "https://www.nature.com/articles/alphafold3",
-      "publishedAt": "2026-10-22T07:30:00Z",
+      "publishedAtOffsetDays": 0.2,
       "language": "zh-CN",
       "category": "research",
       "tags": ["AlphaFold", "论文", "paper", "研究", "benchmark"],
@@ -32,7 +32,7 @@
       "summary": "从数据标注到边缘部署的完整工程记录，包含成本与踩坑清单。",
       "content": "一家年产能千万件的制造企业分享了视觉质检模型的落地过程：先用 8000 张缺陷样本做冷启动，再通过主动学习把标注成本压到原来的三分之一；推理侧改用 INT8 量化并在产线边缘盒子上部署，单张图延迟 18ms。上线六个月后误检率下降 42%，人工复检岗位减少一半。",
       "url": "https://example.com/cases/vision-qc-production",
-      "publishedAt": "2026-10-21T15:00:00Z",
+      "publishedAtOffsetDays": 1.4,
       "language": "zh-CN",
       "category": "application",
       "tags": ["落地", "product", "制造业", "部署"],
@@ -44,7 +44,7 @@
       "summary": "本轮由两家产业基金领投，资金将用于芯片适配与海外市场。",
       "content": "这家成立两年的初创公司宣布完成 6000 万美元 B 轮融资，估值较上一轮翻倍。公司主打 1B 参数以下的端侧模型，通过自研的稀疏注意力把手机端首 token 延迟压到 200ms 以内，目前已与两家手机厂商签订授权协议。",
       "url": "https://example.com/news/edge-ai-series-b",
-      "publishedAt": "2026-10-21T11:20:00Z",
+      "publishedAtOffsetDays": 2,
       "language": "zh-CN",
       "category": "startup",
       "tags": ["融资", "funding", "创业", "端侧"],
