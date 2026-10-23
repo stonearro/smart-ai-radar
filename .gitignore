@@ -7,3 +7,5 @@ Thumbs.db
 coverage/
 .idea/
 .vscode/
+server.err
+server.log
