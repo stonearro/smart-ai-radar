@@ -10,6 +10,7 @@ require('./utils/env').load();
 const { NewsEngine } = require('./core/engine');
 const { PersonaManager } = require('./core/persona');
 const { parseIntent } = require('./core/intent');
+const { analyzeTerms, searchArticles } = require('./core/search');
 const { OutputGenerator, SUPPORTED_FORMATS } = require('./output/generator');
 const logger = require('./utils/logger');
 
@@ -107,6 +108,73 @@ function badRequest(message) {
   const error = new Error(message);
   error.status = 400;
   return error;
+}
+
+/**
+ * 自由文本检索：规则没吃掉的部分，拿去和语料匹配。
+ * 原则是「理解了的关键词就不能悄悄忽略」——搜不到就返回空并说明原因，
+ * 绝不用「最新几条」顶替，也不跨过用户给定的分类去兜底。
+ */
+function applyFreeText(pool, residual, profile) {
+  const text = String(residual || '').trim();
+
+  if (text === '') return { results: pool };
+
+  if (pool.length === 0) {
+    return { results: [], reason: explainEmpty(profile) };
+  }
+
+  const inPool = analyzeTerms(pool, text);
+
+  if (inPool.terms.length > 0) {
+    const hits = searchArticles(pool, inPool.terms);
+    const label = topTerms(inPool.terms);
+
+    if (hits.length > 0) {
+      return { results: hits, note: `关键词 → ${label}` };
+    }
+
+    return {
+      results: [],
+      note: `关键词 → ${label}`,
+      reason: `当前条件下没有包含「${label}」的资讯。可以去掉分类或时间限制再试。`
+    };
+  }
+
+  if (inPool.candidates > 0 && inPool.existing.length === 0) {
+    if (hasConstraints(profile)) {
+      return {
+        results: [],
+        reason: `在 ${describeProfile(profile)} 的条件下没有找到包含「${text}」的资讯。去掉分类或时间限制再试。`
+      };
+    }
+
+    return {
+      results: [],
+      reason: `没有找到包含「${text}」的资讯：当前 ${engine.sources.length} 个源里都没有相关内容。可以换个说法，或在 data/sources-config.json 里加一个该领域的源。`
+    };
+  }
+
+  // 词太宽泛（整库都有），不构成约束
+  return { results: pool };
+}
+
+function topTerms(terms) {
+  return [...terms]
+    .sort((a, b) => b.length - a.length || a.localeCompare(b))
+    .slice(0, 3)
+    .join(' / ');
+}
+
+/** 是否带了除「不限」以外的过滤条件。 */
+function hasConstraints(profile) {
+  return Boolean(
+    profile.persona ||
+      (Array.isArray(profile.categories) && profile.categories.length > 0) ||
+      profile.language ||
+      profile.sinceDays ||
+      typeof profile.minRelevance === 'number'
+  );
 }
 
 /**
@@ -212,7 +280,11 @@ app.get('/api/news', async (req, res, next) => {
     const limit = clamp(Number(req.query.limit) || 20, 1, 100);
 
     const articles = await engine.fetchNews();
-    const filtered = engine.filterNews(articles, profile).slice(0, limit);
+    const pool = engine.filterNews(articles, profile);
+    const free = req.query.q
+      ? applyFreeText(pool, String(req.query.q), profile)
+      : { results: pool };
+    const filtered = free.results.slice(0, limit);
 
     const context = {
       title: req.query.title || 'Smart AI Radar',
@@ -271,7 +343,12 @@ app.post('/api/ask', async (req, res, next) => {
     const limit = profile.limit || 8;
 
     const articles = await engine.fetchNews();
-    const filtered = engine.filterNews(articles, profile).slice(0, limit);
+    const pool = engine.filterNews(articles, profile);
+    const free = applyFreeText(pool, intent.residual, profile);
+    const filtered = free.results.slice(0, limit);
+
+    const understood = [...intent.explanation];
+    if (free.note) understood.push(free.note);
 
     const context = {
       title: query.length > 40 ? `${query.slice(0, 40)}…` : query,
@@ -286,14 +363,14 @@ app.post('/api/ask', async (req, res, next) => {
     res.json({
       success: true,
       query,
-      understood: intent.explanation,
+      understood,
       profile: {
         ...profile,
         persona: profile.persona ? profile.persona.id : null
       },
       metadata: { total: filtered.length, available: articles.length },
       data: { [format]: format === 'json' ? JSON.parse(content) : content },
-      hint: filtered.length === 0 ? explainEmpty(profile) : null
+      hint: filtered.length === 0 ? free.reason || explainEmpty(profile) : null
     });
   } catch (error) {
     next(error);

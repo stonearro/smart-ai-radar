@@ -346,3 +346,56 @@ test('POST /api/ask narrows finance by language', async () => {
     assert.equal(article.language, 'zh-CN');
   }
 });
+
+/* --------------------------- 任意关键词 --------------------------- */
+
+test('任意关键词只要语料里有就能搜到', async () => {
+  const expected = [
+    ['vLLM', /vLLM/i],
+    ['AlphaFold', /AlphaFold/i],
+    ['工业质检', /质检/],
+    ['美联储', /美联储/]
+  ];
+
+  for (const [q, pattern] of expected) {
+    const res = await post('/api/ask', { q, format: 'json' });
+    assert.equal(res.status, 200, `${q} 应当被接受`);
+    assert.ok(res.json.metadata.total > 0, `${q} 应当有结果`);
+
+    const titles = res.json.data.json.articles.map((article) => article.title).join(' ');
+    assert.match(titles, pattern, `${q} 的返回里应当真的出现该词`);
+  }
+});
+
+test('语料里没有的关键词返回空并说明原因', async () => {
+  const res = await post('/api/ask', { q: '固态电池', format: 'json' });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.json.metadata.total, 0, '不该拿不相关的内容凑数');
+  assert.match(res.json.hint, /没有找到包含「固态电池」的资讯/);
+});
+
+test('关键词检索的解释里带上真正用到的词', async () => {
+  const res = await post('/api/ask', { q: '推理优化', format: 'json' });
+
+  assert.equal(res.status, 200);
+  assert.ok(res.json.metadata.total > 0);
+  assert.ok(
+    res.json.understood.some((line) => line.includes('关键词 → 推理优化')),
+    `应当说明用到的关键词，实际：${res.json.understood.join(' | ')}`
+  );
+});
+
+test('/api/news 也支持 q 全文检索', async () => {
+  const res = await get('/api/news?q=vLLM&formats=json');
+  assert.equal(res.status, 200);
+  assert.equal(res.json.metadata.total, 1);
+  assert.match(res.json.data.json.articles[0].title, /vLLM/i);
+});
+
+test('q 与分类同时存在时，分类优先且不跨分类兜底', async () => {
+  const res = await get('/api/news?q=美联储&categories=research&formats=json');
+
+  assert.equal(res.status, 200);
+  assert.equal(res.json.metadata.total, 0, 'research 分类下没有美联储相关内容');
+});

@@ -169,11 +169,18 @@ function parseIntent(input) {
     explanation.push(`关键词 → ${quoted.join(' / ')}`);
   }
 
+  // 规则吃掉的部分之外，剩下的自由词交给全文检索，这样任意关键词都能被用上
+  const residual = extractResidual(text);
+
   if (explanation.length === 0) {
-    explanation.push('没识别到具体偏好，先按时间给你最新的几条。');
+    explanation.push(
+      residual
+        ? '没识别到分类偏好，改用关键词检索'
+        : '没识别到具体偏好，先按时间给你最新的几条。'
+    );
   }
 
-  return { profile, explanation };
+  return { profile, explanation, residual };
 }
 
 /** 用户直接写人格 id 时，不用猜。 */
@@ -183,6 +190,36 @@ function findExplicitPersona(text) {
     if (lowered.includes(rule.id)) return rule.id;
   }
   return null;
+}
+
+/** 这些词只是语气和泛化限定，不该被当成检索关键词。 */
+const GENERIC_RE = /全球|国际|世界|国内|海外|全网|最新|最近|今日|今天|昨天|动态|趋势|情况|相关|关于|推荐|整理|汇总|一下|有没有|什么|哪些|帮我|给我|麻烦|请问|新闻|资讯|消息|内容|报道|条|个|篇|则/gi;
+
+/**
+ * 把规则已经消费掉的部分和非关键语气词去掉，剩下的自由文本交给全文检索。
+ * 例如「固态电池的进展」->「固态电池 进展」，再交给 search.js 判定语料里有没有。
+ */
+function extractResidual(text) {
+  let rest = text;
+
+  const consumed = [
+    ...PERSONA_RULES.map((rule) => rule.re),
+    ...CATEGORY_RULES.map((rule) => rule.re),
+    ...RANGE_RULES.map((rule) => rule.re),
+    ...LANGUAGE_RULES.map((rule) => rule.re),
+    QUALITY_RE,
+    /[「"“][^」"”]{2,20}[」"”]/g
+  ];
+
+  for (const re of consumed) {
+    rest = rest.replace(new RegExp(re.source, `${re.flags.replace('g', '')}g`), ' ');
+  }
+
+  rest = rest.replace(GENERIC_RE, ' ').replace(/\d+/g, ' ');
+  // 这个产品的语料本来就是 AI 资讯，"AI" 不携带任何区分度；只去独立单词，避免误伤 email 这类词
+  rest = rest.replace(/\bai\b/gi, ' ').replace(/人工智能/g, ' ');
+
+  return rest.replace(/[\s,，、;；:：!?！？()（）【】[\]「」"“”]+/g, ' ').trim();
 }
 
 /** 主题词 -> 分类，用来命中除 AI 之外的内容（财经等）。 */
